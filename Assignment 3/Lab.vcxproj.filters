@@ -64,5 +64,8 @@
     <None Include="normalMap.vert">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="lighting_cubemap.frag">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
