@@ -15,11 +15,11 @@ float gFrameRate = 60.0f;
 float gFrameTime = 1 / gFrameRate;
 
 // scene content
-GLuint gVBO = 0;		// vertex buffer object identifier
-GLuint gVAO = 0;		// vertex array object identifier
+//GLuint gVBO = 0;		// vertex buffer object identifier
+//GLuint gVAO = 0;		// vertex array object identifier
 
-//GLuint gVBO[2];
-//GLuint gVAO[2];
+GLuint gVBO[2];
+GLuint gVAO[2];
 
 std::map<std::string, ShaderProgram> gShaders; // holds multiple shaders
 std::map<std::string, Texture> gTextures; // holds multiple textures
@@ -48,6 +48,10 @@ static void init(GLFWwindow* window)
 	gShaders["Reflection"].compileAndLink("lighting.vert", "reflection.frag");
 	gShaders["NormalMap"].compileAndLink("normalMap.vert", "normalMap.frag");
 
+	// load textures
+	gTextures["Stone"].generate("./images/Fieldstone.bmp");
+	gTextures["StoneNormalMap"].generate("./images/FieldstoneBumpDOT3.bmp");
+
 	// initialise view matrix
 	gCamera.setViewMatrix(glm::vec3(0.0f, 2.0f, 4.0f),
 		glm::vec3(0.0f, 0.0f, 0.0f));
@@ -75,7 +79,7 @@ static void init(GLFWwindow* window)
 	gMaterial["Cube"].shininess = 10.0f;
 
 	// initialise model matrices
-	gModelMatrix["Floor"] = glm::mat4(1.0f) * glm::scale(glm::vec3(1.5f, 1.5f, 1.5f));
+	gModelMatrix["Floor"] = glm::mat4(1.0f);// *glm::scale(glm::vec3(1.5f, 1.5f, 1.5f));
 	gModelMatrix["Cube"] = glm::translate(glm::vec3(-1.0f, 0.5f, 0.0f)) * glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
 
 	// load model
@@ -84,35 +88,94 @@ static void init(GLFWwindow* window)
 	gModels["Torus"].loadModel("./models/torus.obj");
 
 	// vertex positions and normals
-	std::vector<GLfloat> vertices =
+	std::vector<GLfloat> floorVertices =
 	{
-		-1.5f, 0.0f, 1.5f,	// vertex 0: position
+		-2.5f, 0.0f, 2.5f,	// vertex 0: position
 		0.0f, 1.0f, 0.0f,	// vertex 0: normal
-		1.5f, 0.0f, 1.5f,	// vertex 1: position
+
+		2.5f, 0.0f, 2.5f,	// vertex 1: position
 		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		-1.5f, 0.0f, -1.5f,	// vertex 2: position
+
+		-2.5f, 0.0f, -2.5f,	// vertex 2: position
 		0.0f, 1.0f, 0.0f,	// vertex 2: normal
-		1.5f, 0.0f, -1.5f,	// vertex 3: position
+
+		2.5f, 0.0f, -2.5f,	// vertex 3: position
 		0.0f, 1.0f, 0.0f,	// vertex 3: normal
 	};
 
-	// create VBO
-	glGenBuffers(1, &gVBO);					// generate unused VBO identifier
-	glBindBuffer(GL_ARRAY_BUFFER, gVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+	std::vector<GLfloat> wallVertices = {
+		-2.5f, 0.0f, 2.5f, // vertex 0: position
+		0.0f, 0.0f, 1.0f,	// vertex 0: normal
+		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
+		0.0f, 0.0f,			// vertex 0: texture coordinate
+
+		2.5f, 0.0f, 2.5f,	// vertex 1: position
+		0.0f, 0.0f, 1.0f,	// vertex 1: normal
+		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
+		2.5f, 0.0f,			// vertex 1: texture coordinate
+
+		-2.5f, 2.5f, 2.5f,	// vertex 2: position
+		0.0f, 0.0f, 1.0f,	// vertex 2: normal
+		1.0f, 0.0f, 0.0f,	// vertex 2: tangent
+		0.0f, 2.5f,			// vertex 2: texture coordinate
+
+		2.5f, 2.5f, 2.5f,	// vertex 1: position
+		0.0f, 0.0f, 1.0f,	// vertex 1: normal
+		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
+		2.5f, 2.5f,			// vertex 1: texture coordinate
+	};
+
+
+
+	// create VBOs/VAOs
+	glGenBuffers(2, gVBO);
+	glGenVertexArrays(2, gVAO);
+
+	//glGenBuffers(1, &gVBO[0]);					// generate unused VBO identifier
+	glBindBuffer(GL_ARRAY_BUFFER, gVBO[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * floorVertices.size(), &floorVertices[0], GL_STATIC_DRAW);
 
 	// create VAO, specify VBO data and format of the data
-	glGenVertexArrays(1, &gVAO);			// generate unused VAO identifier
-	glBindVertexArray(gVAO);				// create VAO
-	glBindBuffer(GL_ARRAY_BUFFER, gVBO);	// bind the VBO
+	//glGenVertexArrays(1, &gVAO[0]);			// generate unused VAO identifier
+	glBindVertexArray(gVAO[0]);				// create VAO
+	glBindBuffer(GL_ARRAY_BUFFER, gVBO[0]);	// bind the VBO
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormal),
 		reinterpret_cast<void*>(offsetof(VertexNormal, position)));		// specify format of position data
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormal),
 		reinterpret_cast<void*>(offsetof(VertexNormal, normal)));		// specify format of colour data
 
-	glEnableVertexAttribArray(0);	// enable vertex attributes
-	glEnableVertexAttribArray(1);
+	// WALL BUFFERS
+
+	//glGenBuffers(1, &gVBO[1]);
+	glBindBuffer(GL_ARRAY_BUFFER, gVBO[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)* wallVertices.size(), &wallVertices[0], GL_STATIC_DRAW);
+
+	//glGenVertexArrays(1, &gVAO[1]);
+	glBindVertexArray(gVAO[1]);
+	glBindBuffer(GL_ARRAY_BUFFER, gVBO[1]);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
+		reinterpret_cast<void*>(offsetof(VertexNormTanTex, position)));		// specify format of position data
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
+		reinterpret_cast<void*>(offsetof(VertexNormTanTex, normal)));		// specify format of colour data
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
+		reinterpret_cast<void*>(offsetof(VertexNormTanTex, tangent)));		// specify format of colour data
+	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
+		reinterpret_cast<void*>(offsetof(VertexNormTanTex, texCoord)));		// specify format of colour data
+
+	// WALL BUFFER END
+
+	//glBindVertexArray(gVAO[0]);
+	//glEnableVertexAttribArray(0);	// enable vertex attributes
+	//glEnableVertexAttribArray(1);
+
+	//glEnableVertexAttribArray(0);
+	//glEnableVertexAttribArray(1);
+	//glEnableVertexAttribArray(2); // for tangent
+	//glEnableVertexAttribArray(3); // for texture coordinate
+
 }
 
 // function used to update the scene
@@ -135,6 +198,16 @@ static void update_scene(GLFWwindow* window)
 	// update camera position and direction
 	gCamera.update(moveForward, moveRight);
 }
+
+//void draw_walls() {
+//
+//	glm::mat4 wallMatrix = glm::mat4(1.0f);
+//	glBindVertexArray(gVAO[1]);
+//
+//	for (int i = 0; i < 4; i++) {
+//		modelMatrix 
+//	}
+//}
 
 void draw_floor(float alpha)
 {
@@ -171,8 +244,16 @@ void draw_floor(float alpha)
 	// set blending amount
 	gShader->setUniform("uAlpha", alpha);
 
-	glBindVertexArray(gVAO);				// make VAO active
+	glBindVertexArray(gVAO[0]);				// make VAO active
+
+	// enable vertex attributes
+	glEnableVertexAttribArray(0);	
+	glEnableVertexAttribArray(1);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
+
+	// disable vertex attributes
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 }
 
 void draw_objects(bool reflection)
@@ -226,6 +307,48 @@ void draw_objects(bool reflection)
 
 	// draw model
 	gModels["Cube"].drawModel();
+
+
+	glm::mat4 wallMatrix = glm::mat4(1.0f);
+	glBindVertexArray(gVAO[1]); // bind the VAO to use
+
+	// enable attribs
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2); // for tangent
+	glEnableVertexAttribArray(3); // for texture coordinate
+
+	gShader = &gShaders["NormalMap"]; // changes shaders
+	gShader->use();
+
+	// set light properties
+	gShader->setUniform("uLight.pos", lightPosition);
+	gShader->setUniform("uLight.La", gLight.La);
+	gShader->setUniform("uLight.Ld", gLight.Ld);
+	gShader->setUniform("uLight.Ls", gLight.Ls);
+	gShader->setUniform("uLight.att", gLight.att);
+
+	// set viewing position
+	gShader->setUniform("uViewpoint", gCamera.getPosition());
+
+	for (int i = 0; i < 4; i++) {
+		modelMatrix = reflectMatrix * wallMatrix;
+		MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * modelMatrix;
+		normalMatrix = glm::mat3(glm::transpose(glm::inverse(modelMatrix)));
+
+		gShader->setUniform("uModelViewProjectionMatrix", MVP);
+		gShader->setUniform("uModelMatrix", modelMatrix);
+		gShader->setUniform("uNormalMatrix", normalMatrix);
+
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		wallMatrix *= glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	}
+
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
+	glDisableVertexAttribArray(2); // for tangent
+	glDisableVertexAttribArray(3); // for texture coordinate
 }
 
 // function to render the scene
@@ -468,8 +591,8 @@ int main(void)
 	}
 
 	// clean up
-	glDeleteBuffers(1, &gVBO);
-	glDeleteVertexArrays(1, &gVAO);
+	glDeleteBuffers(1, &gVBO[0]);
+	glDeleteVertexArrays(1, &gVAO[0]);
 
 	// uninitialise tweak bar
 	TwDeleteBar(tweakBar);
