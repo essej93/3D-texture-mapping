@@ -15,9 +15,11 @@ float gFrameRate = 60.0f;
 float gFrameTime = 1 / gFrameRate;
 
 // scene content
-ShaderProgram gShader;	// shader program object
 GLuint gVBO = 0;		// vertex buffer object identifier
 GLuint gVAO = 0;		// vertex array object identifier
+
+//GLuint gVBO[2];
+//GLuint gVAO[2];
 
 std::map<std::string, ShaderProgram> gShaders; // holds multiple shaders
 std::map<std::string, Texture> gTextures; // holds multiple textures
@@ -28,7 +30,7 @@ std::map<std::string, glm::mat4> gModelMatrix;	// object matrix
 
 Light gLight;					// light properties
 std::map<std::string, Material>  gMaterial;		// material properties
-SimpleModel gModel;				// object model
+//SimpleModel gModel;				// object model
 
 // controls
 bool gWireframe = false;	// wireframe control
@@ -43,7 +45,8 @@ static void init(GLFWwindow* window)
 	glEnable(GL_DEPTH_TEST);	// enable depth buffer test
 
 	// compile and link a vertex and fragment shader pair
-	gShader.compileAndLink("lighting.vert", "reflection.frag");
+	gShaders["Reflection"].compileAndLink("lighting.vert", "reflection.frag");
+	gShaders["NormalMap"].compileAndLink("normalMap.vert", "normalMap.frag");
 
 	// initialise view matrix
 	gCamera.setViewMatrix(glm::vec3(0.0f, 2.0f, 4.0f),
@@ -76,7 +79,7 @@ static void init(GLFWwindow* window)
 	gModelMatrix["Cube"] = glm::translate(glm::vec3(-1.0f, 0.5f, 0.0f)) * glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
 
 	// load model
-	gModel.loadModel("./models/cube.obj");
+	//gModel.loadModel("./models/cube.obj");
 	gModels["Cube"].loadModel("./models/cube.obj");
 	gModels["Torus"].loadModel("./models/torus.obj");
 
@@ -135,36 +138,38 @@ static void update_scene(GLFWwindow* window)
 
 void draw_floor(float alpha)
 {
+	ShaderProgram *gShader = &gShaders["Reflection"];
+
 	// use the shaders associated with the shader program
-	gShader.use();
+	gShader->use();
 
 	// set light properties
-	gShader.setUniform("uLight.pos", gLight.pos);
-	gShader.setUniform("uLight.La", gLight.La);
-	gShader.setUniform("uLight.Ld", gLight.Ld);
-	gShader.setUniform("uLight.Ls", gLight.Ls);
-	gShader.setUniform("uLight.att", gLight.att);
+	gShader->setUniform("uLight.pos", gLight.pos);
+	gShader->setUniform("uLight.La", gLight.La);
+	gShader->setUniform("uLight.Ld", gLight.Ld);
+	gShader->setUniform("uLight.Ls", gLight.Ls);
+	gShader->setUniform("uLight.att", gLight.att);
 
 	// set viewing position
-	gShader.setUniform("uViewpoint", gCamera.getPosition());
+	gShader->setUniform("uViewpoint", gCamera.getPosition());
 
 	// set material properties
-	gShader.setUniform("uMaterial.Ka", gMaterial["Floor"].Ka);
-	gShader.setUniform("uMaterial.Kd", gMaterial["Floor"].Kd);
-	gShader.setUniform("uMaterial.Ks", gMaterial["Floor"].Ks);
-	gShader.setUniform("uMaterial.shininess", gMaterial["Floor"].shininess);
+	gShader->setUniform("uMaterial.Ka", gMaterial["Floor"].Ka);
+	gShader->setUniform("uMaterial.Kd", gMaterial["Floor"].Kd);
+	gShader->setUniform("uMaterial.Ks", gMaterial["Floor"].Ks);
+	gShader->setUniform("uMaterial.shininess", gMaterial["Floor"].shininess);
 
 	// calculate matrices
 	glm::mat4 MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * gModelMatrix["Floor"];
 	glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(gModelMatrix["Floor"])));
 
 	// set uniform variables
-	gShader.setUniform("uModelViewProjectionMatrix", MVP);
-	gShader.setUniform("uModelMatrix", gModelMatrix["Floor"]);
-	gShader.setUniform("uNormalMatrix", normalMatrix);
+	gShader->setUniform("uModelViewProjectionMatrix", MVP);
+	gShader->setUniform("uModelMatrix", gModelMatrix["Floor"]);
+	gShader->setUniform("uNormalMatrix", normalMatrix);
 
 	// set blending amount
-	gShader.setUniform("uAlpha", alpha);
+	gShader->setUniform("uAlpha", alpha);
 
 	glBindVertexArray(gVAO);				// make VAO active
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
@@ -186,24 +191,26 @@ void draw_objects(bool reflection)
 		lightPosition = glm::vec3(reflectMatrix * glm::vec4(lightPosition, 1.0f));
 	}
 
+	ShaderProgram* gShader = &gShaders["Reflection"];
+
 	// use the shaders associated with the shader program
-	gShader.use();
+	gShader->use();
 
 	// set light properties
-	gShader.setUniform("uLight.pos", lightPosition);
-	gShader.setUniform("uLight.La", gLight.La);
-	gShader.setUniform("uLight.Ld", gLight.Ld);
-	gShader.setUniform("uLight.Ls", gLight.Ls);
-	gShader.setUniform("uLight.att", gLight.att);
+	gShader->setUniform("uLight.pos", lightPosition);
+	gShader->setUniform("uLight.La", gLight.La);
+	gShader->setUniform("uLight.Ld", gLight.Ld);
+	gShader->setUniform("uLight.Ls", gLight.Ls);
+	gShader->setUniform("uLight.att", gLight.att);
 
 	// set viewing position
-	gShader.setUniform("uViewpoint", gCamera.getPosition());
+	gShader->setUniform("uViewpoint", gCamera.getPosition());
 
 	// set material properties
-	gShader.setUniform("uMaterial.Ka", gMaterial["Cube"].Ka);
-	gShader.setUniform("uMaterial.Kd", gMaterial["Cube"].Kd);
-	gShader.setUniform("uMaterial.Ks", gMaterial["Cube"].Ks);
-	gShader.setUniform("uMaterial.shininess", gMaterial["Cube"].shininess);
+	gShader->setUniform("uMaterial.Ka", gMaterial["Cube"].Ka);
+	gShader->setUniform("uMaterial.Kd", gMaterial["Cube"].Kd);
+	gShader->setUniform("uMaterial.Ks", gMaterial["Cube"].Ks);
+	gShader->setUniform("uMaterial.shininess", gMaterial["Cube"].shininess);
 
 	// calculate matrices
 	modelMatrix = reflectMatrix * gModelMatrix["Cube"];
@@ -211,14 +218,14 @@ void draw_objects(bool reflection)
 	normalMatrix = glm::mat3(glm::transpose(glm::inverse(modelMatrix)));
 
 	// set uniform variables
-	gShader.setUniform("uModelViewProjectionMatrix", MVP);
-	gShader.setUniform("uModelMatrix", modelMatrix);
-	gShader.setUniform("uNormalMatrix", normalMatrix);
+	gShader->setUniform("uModelViewProjectionMatrix", MVP);
+	gShader->setUniform("uModelMatrix", modelMatrix);
+	gShader->setUniform("uNormalMatrix", normalMatrix);
 
-	gShader.setUniform("uAlpha", 1.0f);
+	gShader->setUniform("uAlpha", 1.0f);
 
 	// draw model
-	gModel.drawModel();
+	gModels["Cube"].drawModel();
 }
 
 // function to render the scene
