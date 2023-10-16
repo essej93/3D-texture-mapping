@@ -3,6 +3,7 @@
 // interpolated values from the vertex shaders
 in vec3 vPosition;
 in vec3 vNormal;
+in vec2 vTexCoord;
 
 // light properties
 struct Light
@@ -28,6 +29,7 @@ uniform vec3 uViewpoint;
 uniform Light uLight;
 uniform Material uMaterial;
 uniform float uAlpha;
+uniform sampler2D uTextureSampler;
 
 // output data
 out vec4 fColor;
@@ -64,4 +66,9 @@ void main()
 	
 	// set output color
 	fColor = vec4(Ia + Id + Is, uAlpha);
+
+
+	fColor *= vec4(texture(uTextureSampler, vTexCoord).rgb, 1.0f); // uncommenting this line causes shaders to not link???
+	
+	
 }
