@@ -46,7 +46,7 @@ static void init(GLFWwindow* window)
 	// compile and link a vertex and fragment shader pair
 	gShaders["Reflection"].compileAndLink("lighting.vert", "reflection.frag");
 	gShaders["NormalMap"].compileAndLink("normalMap.vert", "normalMap.frag");
-	//gShaders["CubeMapReflection"].compileAndLink("lighting.vert", "lighting_cubemap.frag");
+	gShaders["CubeMapReflection"].compileAndLink("lighting.vert", "lighting_cubemap.frag");
 
 
 	// load textures
@@ -97,13 +97,13 @@ static void init(GLFWwindow* window)
 
 
 	// initialise model matrices
-	gModelMatrix["Floor"] = glm::mat4(1.0f);// *glm::scale(glm::vec3(1.5f, 1.5f, 1.5f));
+	gModelMatrix["Floor"] = glm::mat4(1.0f);
 	gModelMatrix["Cube"] = glm::translate(glm::vec3(-0.4f, 0.2f, 0.0f)) * glm::scale(glm::vec3(0.2f, 0.2f, 0.2f));
-	gModelMatrix["Torus"] = glm::translate(glm::vec3(0.4, 0.0f, 0.0f));
+	gModelMatrix["Torus"] = glm::mat4(1.0f);
 
 	// load model
 	gModels["Cube"].loadModel("./models/cube.obj", true);
-	gModels["Torus"].loadModel("./models/torus.obj", true);
+	gModels["Torus"].loadModel("./models/torus.obj");
 
 	// vertex positions and normals
 	std::vector<GLfloat> floorVertices =
@@ -281,6 +281,10 @@ static void update_scene(GLFWwindow* window)
 	float moveRight = 0.0f;
 	float moveUp = 0.0f;
 
+	// variables for torus
+	static float rotationAngle = 0.0f;
+	rotationAngle += gTorusRotationSpeed * gFrameTime;
+
 	// update movement variables based on keyboard input
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 		moveForward += gCamMoveSensitivity * gFrameTime;
@@ -297,6 +301,12 @@ static void update_scene(GLFWwindow* window)
 
 	// update camera position and direction
 	gCamera.update(moveForward, moveRight, moveUp);
+
+	gModelMatrix["Torus"] = glm::translate(glm::vec3(0.4, 0.5f, 0.0f)) 
+		* glm::rotate(rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f))
+		* glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f))
+		* glm::scale(glm::vec3(0.4f, 0.4f, 0.4f));
+
 }
 
 
@@ -338,9 +348,6 @@ void draw_floor(float alpha)
 	gShader->setUniform("uTextureSampler", 2);
 	glActiveTexture(GL_TEXTURE2);
 	gTextures["Floor"].bind();
-
-	
-
 
 	glBindVertexArray(gVAO[0]);				// make VAO active
 
@@ -474,6 +481,47 @@ void draw_objects(bool reflection)
 	glDisableVertexAttribArray(3);
 
 	// ******** END WALLS RENDERING ********
+
+	// ******** START TORUS RENDERING ********
+
+	gShader = &gShaders["CubeMapReflection"];
+
+	gShader->use();
+
+	// set light properties
+	gShader->setUniform("uLight.pos", lightPosition);
+	gShader->setUniform("uLight.La", gLight.La);
+	gShader->setUniform("uLight.Ld", gLight.Ld);
+	gShader->setUniform("uLight.Ls", gLight.Ls);
+	gShader->setUniform("uLight.att", gLight.att);
+
+	// set material properties
+	gShader->setUniform("uMaterial.Ka", gMaterial["Torus"].Ka);
+	gShader->setUniform("uMaterial.Kd", gMaterial["Torus"].Kd);
+	gShader->setUniform("uMaterial.Ks", gMaterial["Torus"].Ks);
+	gShader->setUniform("uMaterial.shininess", gMaterial["Torus"].shininess);
+
+	// set viewing position
+	gShader->setUniform("uViewpoint", gCamera.getPosition());
+
+	// calculate matrices
+	modelMatrix = reflectMatrix * gModelMatrix["Torus"];
+	MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * modelMatrix;
+	normalMatrix = glm::mat3(glm::transpose(glm::inverse(modelMatrix)));
+
+
+	// set uniform variables
+	gShader->setUniform("uModelViewProjectionMatrix", MVP);
+	gShader->setUniform("uModelMatrix", modelMatrix);
+	gShader->setUniform("uNormalMatrix", normalMatrix);
+
+	// set textures
+	gShader->setUniform("uEnvironmentMap", 0);
+	glActiveTexture(GL_TEXTURE0);
+	gTextures["CubeMap"].bind();
+
+	gModels["Torus"].drawModel();
+	// ******** END TORUS RENDERING ********
 }
 
 // function to render the scene
