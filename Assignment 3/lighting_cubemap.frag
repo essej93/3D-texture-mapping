@@ -27,6 +27,7 @@ uniform vec3 uViewpoint;
 uniform Light uLight;
 uniform Material uMaterial;
 uniform samplerCube uEnvironmentMap;
+uniform float uReflection;
 
 // output data
 out vec3 fColor;
@@ -61,8 +62,11 @@ void main()
 	fColor = Ia + Id + Is;
 
 	// reflection
-	vec3 reflectEnvMap = reflect(-v, n);
+	vec3 reflectEnvMap = normalize(reflect(-v, n));
+	//vec3 reflectEnvMap = reflect(-v, n);
 
 	// modulate with environment map reflection
-	fColor *= texture(uEnvironmentMap, reflectEnvMap).rgb;
-}
+	//fColor *= texture(uEnvironmentMap, reflectEnvMap).rgb;
+
+	fColor = mix(fColor, texture(uEnvironmentMap, reflectEnvMap).rgb, uReflection);
+	}

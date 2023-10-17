@@ -93,7 +93,7 @@ static void init(GLFWwindow* window)
 	gMaterial["Torus"].Ka = glm::vec3(0.2f);
 	gMaterial["Torus"].Kd = glm::vec3(0.2f, 0.7f, 1.0f);
 	gMaterial["Torus"].Ks = glm::vec3(0.2f, 0.7f, 1.0f);
-	gMaterial["Torus"].shininess = 40.0f;
+	gMaterial["Torus"].shininess = 80.0f;
 
 
 	// initialise model matrices
@@ -108,21 +108,21 @@ static void init(GLFWwindow* window)
 	// vertex positions and normals
 	std::vector<GLfloat> floorVertices =
 	{
-		-2.0f, 0.0f, 2.0f,	// vertex 0: position
+		-3.0f, 0.0f, 3.0f,	// vertex 0: position
 		0.0f, 1.0f, 0.0f,	// vertex 0: normal
 		0.0f, 0.0f,			// vertex 1: texture coordinate
 
-		2.0f, 0.0f, 2.0f,	// vertex 1: position
+		3.0f, 0.0f, 3.0f,	// vertex 1: position
 		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		2.0f, 0.0f,			// vertex 1: texture coordinate
+		3.0f, 0.0f,			// vertex 1: texture coordinate
 
-		-2.0f, 0.0f, -2.0f,	// vertex 2: position
+		-3.0f, 0.0f, -3.0f,	// vertex 2: position
 		0.0f, 1.0f, 0.0f,	// vertex 2: normal
-		0.0f, 2.0f,			// vertex 1: texture coordinate
+		0.0f, 3.0f,			// vertex 1: texture coordinate
 
-		2.0f, 0.0f, -2.0f,	// vertex 3: position
+		3.0f, 0.0f, -3.0f,	// vertex 3: position
 		0.0f, 1.0f, 0.0f,	// vertex 3: normal
-		2.0f, 2.0f,			// vertex 1: texture coordinate
+		3.0f, 3.0f,			// vertex 1: texture coordinate
 	};
 
 	/*
@@ -149,27 +149,29 @@ static void init(GLFWwindow* window)
 	};*/
 
 	std::vector<GLfloat> wallVertices = {
-		-2.0f, 0.0f, -2.0f, // vertex 0: position
-		0.0f, 1.0f, 0.0f,	// vertex 0: normal
+		-3.0f, 0.0f, -3.0f, // vertex 0: position
+		0.0f, 0.0f, 1.0f,	// vertex 0: normal
 		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
 		0.0f, 0.0f,			// vertex 0: texture coordinate
 
-		2.0f, 0.0f, -2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
+		3.0f, 0.0f, -3.0f,	// vertex 1: position
+		0.0f, 0.0f, 1.0f,	// vertex 1: normal
 		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
-		2.0f, 0.0f,			// vertex 1: texture coordinate
+		3.0f, 0.0f,			// vertex 1: texture coordinate
 
-		-2.0f, 2.0f, -2.0f,	// vertex 2: position
-		0.0f, 1.0f, 0.0f,	// vertex 2: normal
+		-3.0f, 3.0f, -3.0f,	// vertex 2: position
+		0.0f, 0.0f, 1.0f,	// vertex 2: normal
 		1.0f, 0.0f, 0.0f,	// vertex 2: tangent
-		0.0f, 2.0f,			// vertex 2: texture coordinate
+		0.0f, 3.0f,			// vertex 2: texture coordinate
 
-		2.0f, 2.0f, -2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
+		3.0f, 3.0f, -3.0f,	// vertex 1: position
+		0.0f, 0.0f, 1.0f,	// vertex 1: normal
 		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
-		2.0f, 2.0f,			// vertex 1: texture coordinate
+		3.0f, 3.0f,			// vertex 1: texture coordinate
 	}; 
 
+
+	// probably delete these:.
 	std::vector<GLfloat> vertices = {
 		// ***** FLOOR VERTICES *****
 
@@ -514,6 +516,7 @@ void draw_objects(bool reflection)
 	gShader->setUniform("uModelViewProjectionMatrix", MVP);
 	gShader->setUniform("uModelMatrix", modelMatrix);
 	gShader->setUniform("uNormalMatrix", normalMatrix);
+	gShader->setUniform("uReflection", gTorusReflection);
 
 	// set textures
 	gShader->setUniform("uEnvironmentMap", 0);

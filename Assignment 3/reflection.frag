@@ -67,8 +67,8 @@ void main()
 	// set output color
 	fColor = vec4(Ia + Id + Is, uAlpha);
 
-
-	fColor *= vec4(texture(uTextureSampler, vTexCoord).rgb, 1.0f); // uncommenting this line causes shaders to not link???
+	// applies texture with alpha value
+	fColor *= vec4(texture(uTextureSampler, vTexCoord).rgb, uAlpha); 
 	
 	
 }
