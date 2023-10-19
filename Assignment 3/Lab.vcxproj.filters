@@ -67,5 +67,8 @@
     <None Include="lighting_cubemap.frag">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="cubeLighting.vert">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -7,10 +7,11 @@ in vec3 vNormal;
 // light properties
 struct Light
 {
-	vec3 dir;
+	vec3 pos;
 	vec3 La;
 	vec3 Ld;
 	vec3 Ls;
+	vec3 att;
 };
 
 // material properties
@@ -41,7 +42,7 @@ void main()
 	vec3 v = normalize(uViewpoint - vPosition);
 
 	// vector towards the light
-    vec3 l = normalize(-uLight.dir);
+	vec3 l = normalize(uLight.pos - vPosition);
 
 	// halfway vector
 	vec3 h = normalize(l + v);
@@ -54,19 +55,32 @@ void main()
 
 	if(dotLN > 0.0f)
 	{
-		Id = uLight.Ld * uMaterial.Kd * dotLN;
-	    Is = uLight.Ls * uMaterial.Ks * pow(max(dot(n, h), 0.0f), uMaterial.shininess);
+		// attenuation
+		float dist = length(uLight.pos - vPosition);
+		float attenuation = 1.0f / (uLight.att.x + dist * uLight.att.y + dist * dist * uLight.att.z);
+
+		Id = uLight.Ld * uMaterial.Kd * dotLN * attenuation;
+	    Is = uLight.Ls * uMaterial.Ks * pow(max(dot(n, h), 0.0f), uMaterial.shininess) * attenuation;
+
+		//Id = uLight.Ld * uMaterial.Kd * dotLN;
+	    //Is = uLight.Ls * uMaterial.Ks * pow(max(dot(n, h), 0.0f), uMaterial.shininess);
 	}
 
 	// intensity of reflected light
 	fColor = Ia + Id + Is;
 
+	vec3 reflectEnvMap = reflect(-v, n);
+	//fColor *= vec4(texture(uEnvironmentMap, reflectEnvMap).rgb, uReflection);
+	
+	
+
 	// reflection
-	vec3 reflectEnvMap = normalize(reflect(-v, n));
-	//vec3 reflectEnvMap = reflect(-v, n);
+	//vec3 reflectEnvMap = normalize(reflect(-v, n));
+
+	
 
 	// modulate with environment map reflection
-	//fColor *= texture(uEnvironmentMap, reflectEnvMap).rgb;
+	fColor *= texture(uEnvironmentMap, reflectEnvMap).rgb;
 
-	fColor = mix(fColor, texture(uEnvironmentMap, reflectEnvMap).rgb, uReflection);
+	//fColor = mix(fColor, texture(uEnvironmentMap, reflectEnvMap).rgb, uReflection);
 	}

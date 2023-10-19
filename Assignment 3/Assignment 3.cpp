@@ -5,8 +5,8 @@
 
 // global variables
 // settings
-unsigned int gWindowWidth = 800;
-unsigned int gWindowHeight = 600;
+unsigned int gWindowWidth = 1200;
+unsigned int gWindowHeight = 1000;
 float gCamMoveSensitivity = 1.0f;
 const float gCamRotateSensitivity = 0.1f;
 
@@ -27,12 +27,15 @@ std::map<std::string, glm::mat4> gModelMatrix;	// object matrix
 Light gLight;					// light properties
 std::map<std::string, Material>  gMaterial;		// material properties
 
+std::map<std::string, glm::mat4> gProjectionMatrix;
+std::map<std::string, glm::mat4> gViewMatrix;
+
 
 // controls
 bool gWireframe = false;	// wireframe control
-float gAlpha = 0.5f;		// reflective amount
-float gFloorReflection = 1.0f;
-float gTorusReflection = 1.0f;
+bool gMultiViewMode = false;
+float gFloorReflection = 0.5f;		// floor reflective amount
+float gTorusReflection = 1.0f;		// torus reflective amount
 float gTorusRotationSpeed = 1.0f;
 
 // function initialise scene and render settings
@@ -46,7 +49,7 @@ static void init(GLFWwindow* window)
 	// compile and link a vertex and fragment shader pair
 	gShaders["Reflection"].compileAndLink("lighting.vert", "reflection.frag");
 	gShaders["NormalMap"].compileAndLink("normalMap.vert", "normalMap.frag");
-	gShaders["CubeMapReflection"].compileAndLink("lighting.vert", "lighting_cubemap.frag");
+	gShaders["CubeMapReflection"].compileAndLink("cubeLighting.vert", "lighting_cubemap.frag");
 
 
 	// load textures
@@ -60,12 +63,19 @@ static void init(GLFWwindow* window)
 		"./images/cm_top.bmp", "./images/cm_bottom.bmp");
 
 	// initialise view matrix
-	gCamera.setViewMatrix(glm::vec3(0.0f, 5.0f, 4.0f),
-		glm::vec3(0.0f, 0.0f, 0.0f));
+	gCamera.setViewMatrix(glm::vec3(0.0f, 5.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+
+
+	gViewMatrix["Front"] = glm::lookAt(glm::vec3(0.0f, 0.7f, 3.0f), glm::vec3(0.0f, 0.7f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	gViewMatrix["Top"] = glm::lookAt(glm::vec3(0.0f, 12.0f, 0.01f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	// initialise projection matrix
 	gCamera.setProjMatrix(glm::perspective(glm::radians(45.0f),
-		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 10.0f));
+		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 15.0f));
+
+	gProjectionMatrix["Main"] = glm::perspective(glm::radians(45.0f),
+		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 15.0f);
+	gProjectionMatrix["Window"] = glm::perspective(glm::radians(45.0f), 1.0f, 0.0f, 10.f);
 
 	// initialise point light properties
 	gLight.pos = glm::vec3(0.0f, 3.0f, 0.0f);
@@ -75,14 +85,14 @@ static void init(GLFWwindow* window)
 	gLight.att = glm::vec3(1.0f, 0.0f, 0.0f);
 
 	// initialise material properties
-	gMaterial["Floor"].Ka = glm::vec3(0.2f);
-	gMaterial["Floor"].Kd = glm::vec3(0.2f, 0.7f, 1.0f);
-	gMaterial["Floor"].Ks = glm::vec3(0.2f, 0.7f, 1.0f);
+	gMaterial["Floor"].Ka = glm::vec3(1.0f);
+	gMaterial["Floor"].Kd = glm::vec3(1.0f, 1.0f, 1.0f);
+	gMaterial["Floor"].Ks = glm::vec3(1.0f, 1.0f, 1.0f);
 	gMaterial["Floor"].shininess = 40.0f;
 
 	gMaterial["Cube"].Ka = glm::vec3(0.2f);
-	gMaterial["Cube"].Kd = glm::vec3(1.0f, 0.7f, 0.2f);
-	gMaterial["Cube"].Ks = glm::vec3(1.0f, 0.7f, 0.2f);
+	gMaterial["Cube"].Kd = glm::vec3(1.0f, 1.0f, 1.0f);
+	gMaterial["Cube"].Ks = glm::vec3(1.0f, 1.0f, 1.0f);
 	gMaterial["Cube"].shininess = 10.0f;
 
 	gMaterial["Wall"].Ka = glm::vec3(0.2f);
@@ -93,7 +103,7 @@ static void init(GLFWwindow* window)
 	gMaterial["Torus"].Ka = glm::vec3(0.2f);
 	gMaterial["Torus"].Kd = glm::vec3(0.2f, 0.7f, 1.0f);
 	gMaterial["Torus"].Ks = glm::vec3(0.2f, 0.7f, 1.0f);
-	gMaterial["Torus"].shininess = 80.0f;
+	gMaterial["Torus"].shininess = 50.0f;
 
 
 	// initialise model matrices
@@ -125,29 +135,6 @@ static void init(GLFWwindow* window)
 		3.0f, 3.0f,			// vertex 1: texture coordinate
 	};
 
-	/*
-	std::vector<GLfloat> wallVertices = {
-		-2.0f, 0.0f, 2.0f, // vertex 0: position
-		0.0f, 1.0f, 0.0f,	// vertex 0: normal
-		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
-		0.0f, 0.0f,			// vertex 0: texture coordinate
-
-		2.0f, 0.0f, 2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
-		2.0f, 0.0f,			// vertex 1: texture coordinate
-
-		-2.0f, 2.0f, 2.0f,	// vertex 2: position
-		0.0f, 1.0f, 0.0f,	// vertex 2: normal
-		1.0f, 0.0f, 0.0f,	// vertex 2: tangent
-		0.0f, 2.0f,			// vertex 2: texture coordinate
-
-		2.0f, 2.0f, 2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
-		2.0f, 2.0f,			// vertex 1: texture coordinate
-	};*/
-
 	std::vector<GLfloat> wallVertices = {
 		-3.0f, 0.0f, -3.0f, // vertex 0: position
 		0.0f, 0.0f, 1.0f,	// vertex 0: normal
@@ -170,59 +157,6 @@ static void init(GLFWwindow* window)
 		3.0f, 3.0f,			// vertex 1: texture coordinate
 	}; 
 
-
-	// probably delete these:.
-	std::vector<GLfloat> vertices = {
-		// ***** FLOOR VERTICES *****
-
-		-2.0f, 0.0f, 2.0f,	// vertex 0: position
-		0.0f, 1.0f, 0.0f,	// vertex 0: normal
-		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
-		0.0f, 0.0f,			// vertex 0: texture coordinate
-
-
-		2.0f, 0.0f, 2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
-		2.0f, 0.0f,			// vertex 0: texture coordinate
-
-		-2.0f, 0.0f, -2.0f,	// vertex 2: position
-		0.0f, 1.0f, 0.0f,	// vertex 2: normal
-		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
-		0.0f, 2.0f,			// vertex 0: texture coordinate
-
-		2.0f, 0.0f, -2.0f,	// vertex 3: position
-		0.0f, 1.0f, 0.0f,	// vertex 3: normal
-		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
-		2.0f, 2.0f,			// vertex 0: texture coordinate
-		// ***** END FLOOR VERTICES *****
-
-		// ***** WALL VERTICES 
-		-2.0f, 0.0f, -2.0f, // vertex 0: position
-		0.0f, 1.0f, 0.0f,	// vertex 0: normal
-		1.0f, 0.0f, 0.0f,	// vertex 0: tangent
-		0.0f, 0.0f,			// vertex 0: texture coordinate
-
-		2.0f, 0.0f, -2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
-		2.0f, 0.0f,			// vertex 1: texture coordinate
-
-		-2.0f, 2.0f, -2.0f,	// vertex 2: position
-		0.0f, 1.0f, 0.0f,	// vertex 2: normal
-		1.0f, 0.0f, 0.0f,	// vertex 2: tangent
-		0.0f, 2.0f,			// vertex 2: texture coordinate
-
-		2.0f, 2.0f, -2.0f,	// vertex 1: position
-		0.0f, 1.0f, 0.0f,	// vertex 1: normal
-		1.0f, 0.0f, 0.0f,	// vertex 1: tangent
-		2.0f, 2.0f,			// vertex 1: texture coordinate
-
-		// ***** END WALL VERTICES *****
-	};
-
-
-
 	// create VBOs/VAOs
 	glGenBuffers(2, gVBO);
 	glGenVertexArrays(2, gVAO);
@@ -242,6 +176,10 @@ static void init(GLFWwindow* window)
 		reinterpret_cast<void*>(offsetof(VertexNormTex, normal)));		// specify format of normal data
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTex),
 		reinterpret_cast<void*>(offsetof(VertexNormTex, texCoord)));		// specify format of texCoord data
+
+	glEnableVertexAttribArray(0); // position
+	glEnableVertexAttribArray(1); // normal
+	glEnableVertexAttribArray(2); // texCoord
 
 	// WALL BUFFERS
 
@@ -264,14 +202,11 @@ static void init(GLFWwindow* window)
 
 	// WALL BUFFER END
 
-	//glBindVertexArray(gVAO[0]);
-	//glEnableVertexAttribArray(0);	// enable vertex attributes
-	//glEnableVertexAttribArray(1);
 
-	//glEnableVertexAttribArray(0);
-	//glEnableVertexAttribArray(1);
-	//glEnableVertexAttribArray(2); // for tangent
-	//glEnableVertexAttribArray(3); // for texture coordinate
+	glEnableVertexAttribArray(0); // position
+	glEnableVertexAttribArray(1); // normal
+	glEnableVertexAttribArray(2); // for tangent
+	glEnableVertexAttribArray(3); // for texture coordinate
 
 }
 
@@ -347,22 +282,16 @@ void draw_floor(float alpha)
 	// set blending amount
 	gShader->setUniform("uAlpha", alpha);
 	
-	gShader->setUniform("uTextureSampler", 2);
-	glActiveTexture(GL_TEXTURE2);
+	gShader->setUniform("uTextureSampler", 0);
+	glActiveTexture(GL_TEXTURE0);
 	gTextures["Floor"].bind();
 
 	glBindVertexArray(gVAO[0]);				// make VAO active
 
-	// enable vertex attributes
-	glEnableVertexAttribArray(0);	
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
+
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
 
-	// disable vertex attributes
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
-	glDisableVertexAttribArray(2);
+
 }
 
 void draw_objects(bool reflection)
@@ -415,9 +344,9 @@ void draw_objects(bool reflection)
 
 	gShader->setUniform("uAlpha", 1.0f);
 
-	gShader->setUniform("uTextureSampler", 3);
+	gShader->setUniform("uTextureSampler", 0);
 
-	glActiveTexture(GL_TEXTURE3);
+	glActiveTexture(GL_TEXTURE0);
 	gTextures["Smile"].bind();
 
 
@@ -425,9 +354,12 @@ void draw_objects(bool reflection)
 	gModels["Cube"].drawModel();
 
 
-	glm::mat4 wallMatrix = glm::mat4(1.0f);
+	
 
 	// ******** WALLS RENDERING ********
+
+	glm::mat4 wallMatrix = glm::mat4(1.0f);
+
 	gShader = &gShaders["NormalMap"]; // changes shaders
 	gShader->use();
 
@@ -457,10 +389,7 @@ void draw_objects(bool reflection)
 
 	// bind the VAO to use and enable attribs
 	glBindVertexArray(gVAO[1]); 
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2); 
-	glEnableVertexAttribArray(3); 
+
 
 	for (int i = 0; i < 4; i++) {
 		modelMatrix = reflectMatrix * wallMatrix;
@@ -477,10 +406,7 @@ void draw_objects(bool reflection)
 	}
 
 	// disable attributes
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
-	glDisableVertexAttribArray(2);
-	glDisableVertexAttribArray(3);
+
 
 	// ******** END WALLS RENDERING ********
 
@@ -573,7 +499,7 @@ static void render_scene()
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 
 	// blend reflective surface with reflection
-	draw_floor(gAlpha);
+	draw_floor(gFloorReflection);
 
 	glDisable(GL_BLEND);	//disable blending
 
@@ -671,8 +597,10 @@ TwBar* create_UI(const std::string name)
 	TwAddVarRO(twBar, "Frame Rate", TW_TYPE_FLOAT, &gFrameRate, " group='Frame Stats' precision=2 ");
 	TwAddVarRO(twBar, "Frame Time", TW_TYPE_FLOAT, &gFrameTime, " group='Frame Stats' ");
 
+	
 	// scene controls
 	TwAddVarRW(twBar, "Wireframe", TW_TYPE_BOOLCPP, &gWireframe, " group='Controls' ");
+	TwAddVarRW(twBar, "Multiview Mode", TW_TYPE_BOOLCPP, &gMultiViewMode, " group='Controls' ");
 
 	// light control
 	TwAddVarRW(twBar, "Position X", TW_TYPE_FLOAT, &gLight.pos.x, " group='Light' min=-3 max=3 step=0.01 ");
@@ -680,7 +608,8 @@ TwBar* create_UI(const std::string name)
 	TwAddVarRW(twBar, "Position Z", TW_TYPE_FLOAT, &gLight.pos.z, " group='Light' min=-3 max=3 step=0.01 ");
 
 	// reflective amount
-	TwAddVarRW(twBar, "Floor", TW_TYPE_FLOAT, &gAlpha, " group='Reflection' min=0.2 max=1 step=0.01 ");
+	TwAddVarRW(twBar, "Floor", TW_TYPE_FLOAT, &gFloorReflection, " group='Reflection' min=0.2 max=1 step=0.01 ");
+	TwAddVarRW(twBar, "Torus", TW_TYPE_FLOAT, &gTorusReflection, " group='Reflection' min=0.2 max=1 step=0.01 ");
 
 	// material controls
 	TwAddVarRW(twBar, "Ka", TW_TYPE_COLOR3F, &gMaterial["Floor"].Ka, " group='Material' ");
