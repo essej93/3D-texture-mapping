@@ -27,16 +27,16 @@ std::map<std::string, glm::mat4> gModelMatrix;	// object matrix
 Light gLight;					// light properties
 std::map<std::string, Material>  gMaterial;		// material properties
 
-std::map<std::string, glm::mat4> gProjectionMatrix;
-std::map<std::string, glm::mat4> gViewMatrix;
+std::map<std::string, glm::mat4> gProjectionMatrix; // holds multiple projection matrices
+std::map<std::string, glm::mat4> gViewMatrix;		// holds multiple view matrices
 
 
 // controls
-bool gWireframe = false;	// wireframe control
-bool gMultiViewMode = false;
+bool gWireframe = false;			// wireframe control
+bool gMultiViewMode = false;		// multiview toggle control
 float gFloorReflection = 0.5f;		// floor reflective amount
 float gTorusReflection = 1.0f;		// torus reflective amount
-float gTorusRotationSpeed = 1.0f;
+float gTorusRotationSpeed = 1.0f;	// torus rotation speed
 
 // function initialise scene and render settings
 static void init(GLFWwindow* window)
@@ -66,7 +66,7 @@ static void init(GLFWwindow* window)
 	// initialise view matrix
 	gCamera.setViewMatrix(glm::vec3(0.0f, 5.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 
-
+	// initialise multiview/window lines views
 	gViewMatrix["Front"] = glm::lookAt(glm::vec3(0.0f, 0.7f, 3.0f), glm::vec3(0.0f, 0.7f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	gViewMatrix["Top"] = glm::lookAt(glm::vec3(0.0f, 12.0f, 0.01f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	gViewMatrix["Main"] = glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -75,6 +75,7 @@ static void init(GLFWwindow* window)
 	gCamera.setProjMatrix(glm::perspective(glm::radians(45.0f),
 		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 15.0f));
 
+	// initialise main projection matrix
 	gProjectionMatrix["Main"] = glm::perspective(glm::radians(45.0f),
 		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 15.0f);
 
@@ -112,7 +113,7 @@ static void init(GLFWwindow* window)
 	gModelMatrix["Cube"] = glm::translate(glm::vec3(-0.4f, 0.2f, 0.0f)) * glm::scale(glm::vec3(0.2f, 0.2f, 0.2f));
 	gModelMatrix["Torus"] = glm::mat4(1.0f);
 
-	// load model
+	// load models
 	gModels["Cube"].loadModel("./models/cube.obj", true);
 	gModels["Torus"].loadModel("./models/torus.obj");
 
@@ -228,7 +229,7 @@ static void init(GLFWwindow* window)
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexColor),
 		reinterpret_cast<void*>(offsetof(VertexColor, position)));		// specify format of position data
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexColor),
-		reinterpret_cast<void*>(offsetof(VertexColor, color)));		// specify format of normal data
+		reinterpret_cast<void*>(offsetof(VertexColor, color)));		// specify format of color data
 
 	glEnableVertexAttribArray(0); // position
 	glEnableVertexAttribArray(1); // color
@@ -251,17 +252,17 @@ static void update_scene(GLFWwindow* window)
 	rotationAngle += gTorusRotationSpeed * gFrameTime;
 
 	// update movement variables based on keyboard input
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)		// forward
 		moveForward += gCamMoveSensitivity * gFrameTime;
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)		// backward
 		moveForward -= gCamMoveSensitivity * gFrameTime;
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)		// left
 		moveRight -= gCamMoveSensitivity * gFrameTime;
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)		// right
 		moveRight += gCamMoveSensitivity * gFrameTime;
-	if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)	// up
 		moveUp += gCamMoveSensitivity * gFrameTime;
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)	// down
 		moveUp -= gCamMoveSensitivity * gFrameTime;
 
 	// update camera position and direction
@@ -392,8 +393,6 @@ void draw_objects(bool reflection)
 	gShader->setUniform("uModelViewProjectionMatrix", MVP);
 	gShader->setUniform("uModelMatrix", modelMatrix);
 	gShader->setUniform("uNormalMatrix", normalMatrix);
-
-	gShader->setUniform("uAlpha", 1.0f);
 
 	gShader->setUniform("uTextureSampler", 0);
 
@@ -595,7 +594,7 @@ static void render_scene()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	// ******** START DRAW MULTIVIEW LINES ********
-
+	// draws lines only if multiview is true
 	if (gMultiViewMode) {
 		glm::mat4 MVP;
 		MVP = gProjectionMatrix["Main"] * gViewMatrix["Main"];
@@ -747,7 +746,7 @@ TwBar* create_UI(const std::string name)
 	TwDefine(" TW_HELP visible=false ");	// disable help menu
 	TwDefine(" GLOBAL fontsize=3 ");		// set large font size
 
-	TwDefine(" Main label='User Interface' refresh=0.02 text=light size='250 250' position='10 10' ");
+	TwDefine(" Main label='User Interface' refresh=0.02 text=light size='250 300' position='10 10' ");
 
 	// create frame stat entries
 	TwAddVarRO(twBar, "Frame Rate", TW_TYPE_FLOAT, &gFrameRate, " group='Frame Stats' precision=2 ");
