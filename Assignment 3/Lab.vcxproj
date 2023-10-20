@@ -34,9 +34,11 @@
     <ClInclude Include="utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="color.frag" />
     <None Include="cubeLighting.vert" />
     <None Include="lighting.vert" />
     <None Include="lighting_cubemap.frag" />
+    <None Include="modelViewProj.vert" />
     <None Include="normalMap.frag" />
     <None Include="normalMap.vert" />
     <None Include="reflection.frag" />

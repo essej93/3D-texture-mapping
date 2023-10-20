@@ -15,8 +15,8 @@ float gFrameRate = 60.0f;
 float gFrameTime = 1 / gFrameRate;
 
 // scene content
-GLuint gVBO[2];
-GLuint gVAO[2];
+GLuint gVBO[3];
+GLuint gVAO[3];
 std::map<std::string, ShaderProgram> gShaders; // holds multiple shaders
 std::map<std::string, Texture> gTextures; // holds multiple textures
 std::map <std::string, SimpleModel> gModels; // holds multiple models
@@ -50,6 +50,7 @@ static void init(GLFWwindow* window)
 	gShaders["Reflection"].compileAndLink("lighting.vert", "reflection.frag");
 	gShaders["NormalMap"].compileAndLink("normalMap.vert", "normalMap.frag");
 	gShaders["CubeMapReflection"].compileAndLink("cubeLighting.vert", "lighting_cubemap.frag");
+	gShaders["Lines"].compileAndLink("modelViewProj.vert", "color.frag");
 
 
 	// load textures
@@ -68,6 +69,7 @@ static void init(GLFWwindow* window)
 
 	gViewMatrix["Front"] = glm::lookAt(glm::vec3(0.0f, 0.7f, 3.0f), glm::vec3(0.0f, 0.7f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	gViewMatrix["Top"] = glm::lookAt(glm::vec3(0.0f, 12.0f, 0.01f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	gViewMatrix["Main"] = glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	// initialise projection matrix
 	gCamera.setProjMatrix(glm::perspective(glm::radians(45.0f),
@@ -75,7 +77,6 @@ static void init(GLFWwindow* window)
 
 	gProjectionMatrix["Main"] = glm::perspective(glm::radians(45.0f),
 		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 15.0f);
-	gProjectionMatrix["Window"] = glm::perspective(glm::radians(45.0f), 1.0f, 0.0f, 10.f);
 
 	// initialise point light properties
 	gLight.pos = glm::vec3(0.0f, 3.0f, 0.0f);
@@ -157,16 +158,26 @@ static void init(GLFWwindow* window)
 		3.0f, 3.0f,			// vertex 1: texture coordinate
 	}; 
 
-	// create VBOs/VAOs
-	glGenBuffers(2, gVBO);
-	glGenVertexArrays(2, gVAO);
+	std::vector<GLfloat> lines = {
+		0.0f, 1.0f, 0.0f,		// line 1 vertex 0: position
+		1.0f, 1.0f, 1.0f,		// line 1 vertex 0: colour
+		0.0f, -1.0f, 0.0f,		// line 1 vertex 1: position
+		1.0f, 1.0f, 1.0f,		// line 1 vertex 1: colour
+		1.0f, 0.0f, 0.0f,		// line 2 vertex 0: position
+		1.0f, 1.0f, 1.0f,		// line 2 vertex 0: colour
+		-1.0f, 0.0f, 0.0f,		// line 2 vertex 1: position
+		1.0f, 1.0f, 1.0f,		// line 2 vertex 1: colour
+	};
 
-	//glGenBuffers(1, &gVBO[0]);					// generate unused VBO identifier
+	// create VBOs/VAOs
+	glGenBuffers(3, gVBO);
+	glGenVertexArrays(3, gVAO);
+
+	// FLOOR BUFFERS
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * floorVertices.size(), &floorVertices[0], GL_STATIC_DRAW);
 
 	// create VAO, specify VBO data and format of the data
-	//glGenVertexArrays(1, &gVAO[0]);			// generate unused VAO identifier
 	glBindVertexArray(gVAO[0]);				// create VAO
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[0]);	// bind the VBO
 
@@ -181,13 +192,13 @@ static void init(GLFWwindow* window)
 	glEnableVertexAttribArray(1); // normal
 	glEnableVertexAttribArray(2); // texCoord
 
+	// FLOOR BUFFERS END
+
 	// WALL BUFFERS
 
-	//glGenBuffers(1, &gVBO[1]);
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)* wallVertices.size(), &wallVertices[0], GL_STATIC_DRAW);
 
-	//glGenVertexArrays(1, &gVAO[1]);
 	glBindVertexArray(gVAO[1]);
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[1]);
 
@@ -200,13 +211,30 @@ static void init(GLFWwindow* window)
 	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
 		reinterpret_cast<void*>(offsetof(VertexNormTanTex, texCoord)));		// specify format of texCoord data
 
-	// WALL BUFFER END
-
-
 	glEnableVertexAttribArray(0); // position
 	glEnableVertexAttribArray(1); // normal
 	glEnableVertexAttribArray(2); // for tangent
 	glEnableVertexAttribArray(3); // for texture coordinate
+
+	// WALL BUFFER END
+
+	// LINE BUFFER
+	glBindBuffer(GL_ARRAY_BUFFER, gVBO[2]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)* lines.size(), &lines[0], GL_STATIC_DRAW);
+
+	glBindVertexArray(gVAO[2]);				// create VAO
+	glBindBuffer(GL_ARRAY_BUFFER, gVBO[2]);	// bind the VBO
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexColor),
+		reinterpret_cast<void*>(offsetof(VertexColor, position)));		// specify format of position data
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexColor),
+		reinterpret_cast<void*>(offsetof(VertexColor, color)));		// specify format of normal data
+
+	glEnableVertexAttribArray(0); // position
+	glEnableVertexAttribArray(1); // color
+
+
+	// LINE BUFFER END
 
 }
 
@@ -288,8 +316,27 @@ void draw_floor(float alpha)
 
 	glBindVertexArray(gVAO[0]);				// make VAO active
 
+	// checks for multiview mode
+	if (gMultiViewMode) {
+		/* Bottom Right Viewport - Camera */
+		glViewport(600, 0, 600, 500); // sets view port
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
 
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
+		/* Bottom Left Viewport - Front */
+		glViewport(0, 0, 600, 500); // sets view port
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Front"] * gModelMatrix["Floor"]; // calculates MVP
+		gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
+
+		/* Top Right Viewport - Top */
+		glViewport(600, 500, 600, 500); // sets view port
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Top"] * gModelMatrix["Floor"]; // calculates MVP
+		gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
+	}
+	else {
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
+	}
 
 
 }
@@ -310,6 +357,10 @@ void draw_objects(bool reflection)
 		// reposition the point light when rendering the reflection
 		lightPosition = glm::vec3(reflectMatrix * glm::vec4(lightPosition, 1.0f));
 	}
+
+
+
+	// ******** START CUBE RENDERING ********
 
 	ShaderProgram* gShader = &gShaders["Reflection"];
 
@@ -350,13 +401,39 @@ void draw_objects(bool reflection)
 	gTextures["Smile"].bind();
 
 
-	// draw model
-	gModels["Cube"].drawModel();
 
+	// checks for multiview mode
+	if (gMultiViewMode) {
+		/* Bottom Right Viewport - Camera */
+		glViewport(600, 0, 600, 500); // sets view port
+		// draw model
+		gModels["Cube"].drawModel();
+
+		/* Bottom Left Viewport - Front */
+		glViewport(0, 0, 600, 500); // sets view port
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Front"] * modelMatrix; // calculates MVP
+		gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+		// draw model
+		gModels["Cube"].drawModel();
+
+		/* Top Right Viewport - Top */
+		glViewport(600, 500, 600, 500); // sets view port
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Top"] * modelMatrix; // calculates MVP
+		gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+		// draw model
+		gModels["Cube"].drawModel();
+	}
+	else {
+		// draw model
+		gModels["Cube"].drawModel();
+	}
+
+
+	// ******** END CUBE RENDERING ********
 
 	
 
-	// ******** WALLS RENDERING ********
+	// ******** START WALLS RENDERING ********
 
 	glm::mat4 wallMatrix = glm::mat4(1.0f);
 
@@ -390,7 +467,7 @@ void draw_objects(bool reflection)
 	// bind the VAO to use and enable attribs
 	glBindVertexArray(gVAO[1]); 
 
-
+	// for loop to draw 4 walls around the floor
 	for (int i = 0; i < 4; i++) {
 		modelMatrix = reflectMatrix * wallMatrix;
 		MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * modelMatrix;
@@ -400,12 +477,35 @@ void draw_objects(bool reflection)
 		gShader->setUniform("uModelMatrix", modelMatrix);
 		gShader->setUniform("uNormalMatrix", normalMatrix);
 
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		// checks for multiview mode
+		if (gMultiViewMode) {
+			/* Bottom Right Viewport - Camera */
+			glViewport(600, 0, 600, 500); // sets view port
+			// draw model
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-		wallMatrix *= glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			/* Bottom Left Viewport - Front */
+			glViewport(0, 0, 600, 500); // sets view port
+			MVP = gProjectionMatrix["Main"] * gViewMatrix["Front"] * modelMatrix; // calculates MVP
+			gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+			// draw model
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+			/* Top Right Viewport - Top */
+			glViewport(600, 500, 600, 500); // sets view port
+			MVP = gProjectionMatrix["Main"] * gViewMatrix["Top"] * modelMatrix; // calculates MVP
+			gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+			// draw model
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
+		else {
+			// draw model
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
+
+		wallMatrix *= glm::rotate(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // rotates wall matrix
 	}
 
-	// disable attributes
 
 
 	// ******** END WALLS RENDERING ********
@@ -449,17 +549,70 @@ void draw_objects(bool reflection)
 	glActiveTexture(GL_TEXTURE0);
 	gTextures["CubeMap"].bind();
 
-	gModels["Torus"].drawModel();
+	// checks for multiview mode
+	if (gMultiViewMode) {
+		/* Bottom Right Viewport - Camera */
+		glViewport(600, 0, 600, 500); // sets view port
+		// draw model
+		gModels["Torus"].drawModel();
+
+		/* Bottom Left Viewport - Front */
+		glViewport(0, 0, 600, 500); // sets view port
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Front"] * modelMatrix; // calculates MVP
+		gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+		// draw model
+		gModels["Torus"].drawModel();
+
+		/* Top Right Viewport - Top */
+		glViewport(600, 500, 600, 500); // sets view port
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Top"] * modelMatrix; // calculates MVP
+		gShader->setUniform("uModelViewProjectionMatrix", MVP); // sets updated MVP
+		// draw model
+		gModels["Torus"].drawModel();
+	}
+	else {
+		// draw model
+		gModels["Torus"].drawModel();
+	}
+
+	
 	// ******** END TORUS RENDERING ********
+
+
+
 }
 
 // function to render the scene
 static void render_scene()
 {
+
+	// Default view port
+	glViewport(0, 0, gWindowWidth, gWindowHeight);
+
 	/************************************************************************************
 	 * Clear colour buffer, depth buffer and stencil buffer
 	 ************************************************************************************/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+	// ******** START DRAW MULTIVIEW LINES ********
+
+	if (gMultiViewMode) {
+		glm::mat4 MVP;
+		MVP = gProjectionMatrix["Main"] * gViewMatrix["Main"];
+		ShaderProgram* gShader = &gShaders["Lines"];
+		gShader->use();
+		gShader->setUniform("uModelViewProjectionMatrix", MVP);
+
+		// bind the VAO to use 
+		glBindVertexArray(gVAO[2]);
+
+		// draws lines
+		glDrawArrays(GL_LINES, 0, 2);
+		glDrawArrays(GL_LINES, 2, 2);
+
+	}
+
+	// ******** END DRAW MULTIVIEW LINES ********
 
 	/************************************************************************************
 	 * Disable colour buffer and depth buffer, and draw reflective surface into stencil buffer
@@ -505,6 +658,9 @@ static void render_scene()
 
 	// draw the normal scene
 	draw_objects(false);
+
+
+
 
 	// flush the graphics pipeline
 	glFlush();
@@ -611,11 +767,8 @@ TwBar* create_UI(const std::string name)
 	TwAddVarRW(twBar, "Floor", TW_TYPE_FLOAT, &gFloorReflection, " group='Reflection' min=0.2 max=1 step=0.01 ");
 	TwAddVarRW(twBar, "Torus", TW_TYPE_FLOAT, &gTorusReflection, " group='Reflection' min=0.2 max=1 step=0.01 ");
 
-	// material controls
-	TwAddVarRW(twBar, "Ka", TW_TYPE_COLOR3F, &gMaterial["Floor"].Ka, " group='Material' ");
-	TwAddVarRW(twBar, "Kd", TW_TYPE_COLOR3F, &gMaterial["Floor"].Kd, " group='Material' ");
-	TwAddVarRW(twBar, "Ks", TW_TYPE_COLOR3F, &gMaterial["Floor"].Ks, " group='Material' ");
-	TwAddVarRW(twBar, "Shininess", TW_TYPE_FLOAT, &gMaterial["Floor"].shininess, " group='Material' min=1 max=255 step=1 ");
+	// Transformation controls
+	TwAddVarRW(twBar, "Rotation speed: ", TW_TYPE_FLOAT, &gTorusRotationSpeed, " group='Transformations' min=-10.0 max=10.0 step=0.1 ");
 
 	return twBar;
 }
@@ -640,7 +793,7 @@ int main(void)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window and its OpenGL context
-	window = glfwCreateWindow(gWindowWidth, gWindowHeight, "Lab", nullptr, nullptr);
+	window = glfwCreateWindow(gWindowWidth, gWindowHeight, "Assignment 3 - jrs251, 7085989", nullptr, nullptr);
 
 	// check if window created successfully
 	if (window == nullptr)
@@ -710,8 +863,8 @@ int main(void)
 	}
 
 	// clean up
-	glDeleteBuffers(2, gVBO);
-	glDeleteVertexArrays(2, gVAO);
+	glDeleteBuffers(3, gVBO);
+	glDeleteVertexArrays(3, gVAO);
 
 	// uninitialise tweak bar
 	TwDeleteBar(tweakBar);

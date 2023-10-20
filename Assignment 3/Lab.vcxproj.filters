@@ -70,5 +70,11 @@
     <None Include="cubeLighting.vert">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="color.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="modelViewProj.vert">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

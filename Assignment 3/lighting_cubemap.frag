@@ -61,26 +61,16 @@ void main()
 
 		Id = uLight.Ld * uMaterial.Kd * dotLN * attenuation;
 	    Is = uLight.Ls * uMaterial.Ks * pow(max(dot(n, h), 0.0f), uMaterial.shininess) * attenuation;
-
-		//Id = uLight.Ld * uMaterial.Kd * dotLN;
-	    //Is = uLight.Ls * uMaterial.Ks * pow(max(dot(n, h), 0.0f), uMaterial.shininess);
 	}
 
 	// intensity of reflected light
 	fColor = Ia + Id + Is;
 
-	vec3 reflectEnvMap = reflect(-v, n);
-	//fColor *= vec4(texture(uEnvironmentMap, reflectEnvMap).rgb, uReflection);
-	
-	
-
 	// reflection
-	//vec3 reflectEnvMap = normalize(reflect(-v, n));
-
+	vec3 reflectEnvMap = reflect(-v, n);
 	
-
 	// modulate with environment map reflection
-	fColor *= texture(uEnvironmentMap, reflectEnvMap).rgb;
+	// takes uReflection and will output fColor or the texture() * fColor depending on the uReflection value
+	fColor = mix(fColor, (fColor * texture(uEnvironmentMap, reflectEnvMap).rgb), uReflection);
 
-	//fColor = mix(fColor, texture(uEnvironmentMap, reflectEnvMap).rgb, uReflection);
-	}
+}
