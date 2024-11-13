@@ -1,6 +1,15 @@
 ### 3D texture mapping
 ## Description
 This was developed using OpenGL. Its intention was to demonstrate different mapping techniques for textures on 3d objects. It also demonstrates a method used to create a reflection/mirror effect on a reflective surface.
+All shaders were written by me.
+
+## Key Notes:
+- A point light source was used to illuminate the room.
+- Normal mapping was used on walls.
+- Reflective surface was created using the stencil buffer and blending.
+- Cube mapping was used to create the reflection on the torus object.
+- Rotation animations were created for the torus to demonstrate the reflections and lighting.
+- Perspective projections were used for the multiple view windows. User is able to move camera's to get different angles of the room.
 
 
 
